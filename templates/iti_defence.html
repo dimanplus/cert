@@ -1,0 +1,703 @@
+{% extends "main.html" %} {%- block styles %} {{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='Jspreadsheet/v4/jsuites.css') }}" type="text/css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='style01.css') }}" type="text/css" />
+
+<script src="{{ url_for('static', filename = 'js/jquery.min.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename = 'js/node-forge/dist/forge.min.js') }}"></script>
+
+<style>
+  a {
+    color: blue;
+    text-decoration: underline;
+  }
+
+  /* Дополнительные стили, если необходимо */
+  .upload-container {
+    text-align: center;
+    margin-top: 20px;
+    border: 3px dashed #3498db;
+    padding: 20px;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  /* Стили для области Drag & Drop */
+  .drag-over {
+    border: 3px dashed #e74c3c;
+    background-color: #f0f0f0;
+  }
+
+  a {
+    color: blue;
+    text-decoration: underline;
+  }
+</style>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=0.5, shrink-to-fit=yes" />
+</head>
+{% endblock %} {% block content %}
+<div align="center" style="left: -280px; top: -400px" id="load" hidden>
+  <img src="{{ url_for('static', filename='images/mf_gif_1.gif') }}" style="max-width: 350px" />
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-6">
+    <span style="color: red">Есть вопросы по ветке? Пиши на </span>
+    <a href="mailto:"></a>
+  </div>
+  <div class="col-4">Вы вошли как <b>{{ user_name }}</b></div>
+</div>
+
+<hr />
+<div align="left" class="container divopacity">
+  {% if fsm_answer %}
+  <script>
+    var fsm_answer = {{ fsm_answer | safe }};
+    $(document).ready(function () {
+      $("#fsmAnswerModal").modal();
+    });
+  </script>
+
+  <div class="modal fade" id="fsmAnswerModal" data-backdrop="static">
+    <div class="modal-dialog">
+      <div class="modal-content">
+
+        {% if fsm_answer['result'] == 'formError' %}
+        <div class="modal-header">
+          <h4 class="modal-title">Ошибка при создании заявки</h4>
+          <button type="button" class="close" data-dismiss="modal" onClick="location.href=location">
+            ×
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <b class="red">При заполнении заявки произошла ошибка</b>
+          {% for str in fsm_answer['formError'] %}
+          <p>{{ str }}</p>
+          {% endfor %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" data-dismiss="modal" onClick="location.href=location">
+            Закрыть
+          </button>
+        </div>
+
+        {% elif fsm_answer['result'] == 'Error' %}
+        <div class="modal-header">
+          <h4 class="modal-title">Ошибка при создании заявки</h4>
+          <button type="button" class="close" data-dismiss="modal" onClick="location.href=location">
+            ×
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <b class="red">При заведении заявки в FSM произошла ошибка</b>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" data-dismiss="modal" onClick="location.href=location">
+            Закрыть
+          </button>
+        </div>
+        {% else %}
+        <div class="modal-header">
+          <h4 class="modal-title">Заявка успешно создана</h4>
+          <button type="button" class="close" data-dismiss="modal" onClick="location.href=location">
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>Номер заявки: {{ fsm_answer['sd_number'] }}</p>
+          <p>
+            <a target="_blank" href="{{ fsm_answer['megahelp_link'] }}">Ссылка на заявку в MegaHelp</a>
+          </p>
+          <p>
+            <a target="_blank" href="{{ fsm_answer['fsm_link'] }}">Ссылка на заявку в FSM</a>
+          </p>
+          <b>Заявки в MegaHelp и FSM появляются в течение 5 минут.</b>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-success" data-dismiss="modal" onClick="location.href=location">
+            Закрыть
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<form id="myForm" method="POST" enctype="multipart/form-data">
+  <div class="form-row d-flex justify-content-center divopacity">
+    {{ form.hidden_tag() }}
+    <div class="col-5">
+      <div class="col mb-3">
+        <div class="form-group row">
+          {{ form.task_area.label(class="col-form-label col-auto float-sm-left
+          pt-0") }}
+        </div>
+        <div class="form-group row">
+          {{ form.task_area(class="col mb-3", onchange="TaskAreaChoise(this)",
+          style="list-style-type:none") }}
+        </div>
+      </div>
+
+      <!-- --------------------------------первый радиобатон------------------------------------- -->
+      <div id="IN" hidden>
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body">
+              Пожалуйста убедитесь, что Вы корректно выбрали область задач!
+              <br />
+              <b>Внутренние сервисы</b> - это любые сервера и информационные
+              системы обслуживающие пользователей во внутренней сети компании.
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body text-wrap">
+              В компании мегафон развернут <b>сервис ACME PKI</b>
+              - аналог Let`s Encrypt для внутренних сервисов.
+              <br />
+              Ознакомиться:
+              <a class="text-wrap" href="https://"
+                target="_blank" rel="noopener noreferrer">
+              </a>
+              <br />
+              Используя данный сервис, вы можете автоматизировать процесс
+              перевыпуска WEB сертификатов и избавиться от необходимости
+              периодического формирования заявок. Имеются ограничения.
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="row">
+            {{ form.task_internal(class="float-left pt-0 IN",
+            onchange="TaskInternalChoise(this)", style="list-style-type:none")
+            }}
+          </div>
+        </div>
+
+        <div class="col mb-3">
+          <div id="NEW_IN" hidden>
+            {{ form.domain.label(class="NEW_IN") }} {{
+            form.domain(class="form-control col-4 mb-3 NEW_IN NEW_IN_req
+            IN_template", onchange="IN_template(this)") }} {{
+            form.template.label(class="NEW_IN") }} {{
+            form.template(class="form-control col-4 mb-3 NEW_IN NEW_IN_req
+            IN_template", onchange="IF_VMware(this)") }}
+
+            <div data-toggle="tooltip"
+              title="Необходимо выбрать, только в случае, если ваш запрос сформирован на оборудовании, без возможности заполнить обязательные поля: SAN и emailAddress"
+              class="special_request NEW_IN">
+              {{ form.special_request_new(class="special_request NEW_IN",
+              onchange="SpecialRequestChecked(this,'auto_request','true')" ) }}
+              {{ form.special_request_new.label(class="mb-3 special_request NEW_IN" )
+              }}
+            </div>
+            <div data-toggle="tooltip"
+              title="Необходимо выбрать, если ваш запрос сформирован автоматическим способом, без формирования файла CSR"
+              class="auto_request NEW_IN">
+              {{ form.auto_request_new(class="auto_request NEW_IN",
+              onchange="AutoRequestChecked(this,'special_request','true')" ) }}
+              {{ form.auto_request_new.label(class="mb-3 auto_request NEW_IN" )
+              }}
+            </div>
+            <div data-toggle="tooltip"
+              title="Необходимо выбрать, если требуется сформировать сертификат при помощи заполнения полей"
+              class="form_request" hidden>
+              {{ form.cert_gen_new(class="form_request",
+              onchange="FormRequestChecked(this,'NEW_IN','true')" ) }} {{
+              form.cert_gen_new.label(class="mb-3 form_request" ) }}
+            </div>
+            <div class="NEW_IN form_request_req was-validated">
+              <div class="row">
+                {{ form.cert_gen_new_common_name.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_common_name(class="form-control col mb-3
+                form_request_req", placeholder="sample.onefactor.com",
+                type="text", hidden="true",
+                oninput="CheckFormRrequest('NEW_IN')") }}
+              </div>
+
+              <div class="row">
+                {{ form.cert_gen_new_owner_name.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_owner_name(class="form-control col mb-3
+                form_request_req", placeholder="Ivan", type="text",
+                hidden="true", oninput="CheckFormRrequest('NEW_IN')") }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_owner_familia.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_owner_familia(class="form-control col mb-3
+                form_request_req", placeholder="Ivanov", type="text",
+                hidden="true", oninput="CheckFormRrequest('NEW_IN')") }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_otdel.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_otdel(class="form-control col mb-3
+                form_request_req", placeholder="DevOPS", type="text",
+                hidden="true", oninput="CheckFormRrequest('NEW_IN')") }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_eMail.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_eMail(class="form-control col mb-3
+                form_request_req", placeholder="devops@onefactor.com",
+                type="text", hidden="true",
+                oninput="CheckFormRrequest('NEW_IN')") }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_alt_dns.label(
+                  class="col mb-3 form_request_req",
+                  hidden="true") 
+                }}
+                {{ form.cert_gen_new_alt_dns(
+                  class="form-control col mb-3 form_request_req not_form_request",
+                  placeholder="sample1.onefactor.com, sample2.onefactor.com",
+                  type="text", 
+                  hidden="true",
+                  oninput="CheckFormRrequest('NEW_IN')") 
+                }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_alt_ip.label(
+                  class="col mb-3 form_request_req", 
+                  hidden="true") 
+                }} 
+                {{ form.cert_gen_new_alt_ip(
+                  class="form-control col mb-3 form_request_req not_form_request", 
+                  placeholder="192.168.0.1, 10.10.20.30", 
+                  type="text", 
+                  hidden="true",
+                  oninput="CheckFormRrequest('NEW_IN')") 
+                }}
+              </div>
+            </div>
+
+            <div class="container NEW_IN file_in">
+              <div class="upload-container NEW_IN" id="upload-container NEW_IN">
+                {{ form.file_label.label(class="NEW_IN") }}
+                <br />
+                {{ form.file_in_fileInput.label(class="btn btn-primary NEW_IN") }}
+                {{ form.file_in_fileInput(class="d-none NEW_IN not_form_request",multiple="true") }}
+                <div id="NEW_IN_fileList" class="mt-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!--                    {{form.delete_old(onchange="DeleteOldChecked(this,'IN_req_secondary')", hidden="true")}}-->
+          <!--                    {{form.delete_old.label(class="mb-3", hidden="true")}}-->
+
+          <div id="OLD" hidden>
+            {{ form.domain.label(class="OLD") }} {{
+            form.domain(class="form-control col-4 mb-3 OLD OLD_req") }}
+            <div id="formContainer1">
+              <div class="OLD_form">
+                {{ form.old_s_n.label(class="OLD") }} {{
+                form.old_s_n(class="form-control col-4 mb-3 OLD OLD_req",
+                placeholder="S/N старого сертификата") }} {{
+                form.del_reason.label(class="OLD") }} {{
+                form.del_reason(class="form-control col-sm-4 mb-3 OLD OLD_req")
+                }}
+
+                <button type="button" class="btn btn-primary btn-sm col-1/2 mb-3 OLD"
+                  onclick="CloneForm('formContainer1')">
+                  Добавить
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="NEW_OLD" hidden>
+            {{ form.domain.label(class="NEW_OLD") }} {{
+            form.domain(class="form-control col-4 mb-3 NEW_OLD NEW_OLD_req
+            IN_template", onchange="IN_template(this)") }} {{
+            form.template.label(class="NEW_OLD") }} {{
+            form.template(class="form-control col-4 mb-3 NEW_OLD NEW_OLD_req
+            IN_template", onchange="IF_VMware(this)") }}
+
+            <div data-toggle="tooltip"
+              title="Необходимо выбрать, только в случае, если ваш запрос сформирован на оборудовании, без возможности заполнить обязательные поля: SAN и emailAddress"
+              class="special_request NEW_OLD">
+              {{ form.special_request_new_old(class="special_request NEW_OLD",
+              onchange="SpecialRequestChecked(this,'auto_request','true')" ) }}
+              {{ form.special_request_new_old.label(class="mb-3 NEW_OLD" ) }}
+            </div>
+            <div data-toggle="tooltip"
+              title="Необходимо выбрать, если ваш запрос сформирован автоматическим способом, без формирования файла CSR"
+              class="auto_request NEW_OLD">
+              {{ form.auto_request_new_old(class="auto_request NEW_OLD",
+              onchange="AutoRequestChecked(this,'special_request','true')" ) }}
+              {{ form.auto_request_new_old.label(class="mb-3 auto_request
+              NEW_OLD" ) }}
+            </div>
+            <div data-toggle="tooltip"
+              title="Необходимо выбрать, если требуется сформировать сертификат при помощи заполнения полей"
+              class="form_request" hidden>
+              {{ form.cert_gen_new_old(class="form_request",
+              onchange="FormRequestChecked(this,'NEW_OLD','true')" ) }} {{
+              form.cert_gen_new_old.label(class="mb-3 form_request" ) }}
+            </div>
+            <div class="NEW_OLD form_request_req was-validated">
+              <div class="row">
+                {{ form.cert_gen_new_old_common_name.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_old_common_name(class="form-control col mb-3
+                form_request_req", placeholder="sample.onefactor.com",
+                type="text", hidden="true",
+                oninput="CheckFormRrequest('NEW_OLD')" ) }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_old_owner_name.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_old_owner_name(class="form-control col mb-3
+                form_request_req", placeholder="Ivan", type="text",
+                hidden="true", oninput="CheckFormRrequest('NEW_OLD')" ) }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_old_owner_familia.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_old_owner_familia(class="form-control col mb-3
+                form_request_req", placeholder="Ivanov", type="text",
+                hidden="true", oninput="CheckFormRrequest('NEW_OLD')") }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_old_otdel.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_old_otdel(class="form-control col mb-3
+                form_request_req", placeholder="DevOPS", type="text",
+                hidden="true", oninput="CheckFormRrequest('NEW_OLD')") }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_old_eMail.label(class="col mb-3
+                form_request_req", hidden="true") }} {{
+                form.cert_gen_new_old_eMail(class="form-control col mb-3
+                form_request_req", placeholder="devops@onefactor.com",
+                type="text", hidden="true",
+                oninput="CheckFormRrequest('NEW_OLD')") }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_old_alt_dns.label(class="col mb-3 form_request_req", hidden="true") }}
+                {{ form.cert_gen_new_old_alt_dns(
+                  class="form-control col mb-3 form_request_req not_form_request",
+                  placeholder="sample1.onefactor.com, sample2.onefactor.com",
+                  type="text", 
+                  hidden="true",
+                  oninput="CheckFormRrequest('NEW_OLD')") 
+                }}
+              </div>
+              <div class="row">
+                {{ form.cert_gen_new_old_alt_ip.label(class="col mb-3 form_request_req", hidden="true") }} 
+                {{ form.cert_gen_new_old_alt_ip(
+                  class="form-control col mb-3 form_request_req not_form_request", 
+                  placeholder="192.168.0.1, 10.10.20.30", 
+                  type="text", 
+                  hidden="true",
+                  oninput="CheckFormRrequest('NEW_OLD')") 
+                }}
+              </div>
+            </div>
+
+            <div class="container NEW_OLD file_in">
+              <div class="upload-container NEW_OLD" id="upload-container NEW_OLD">
+                {{ form.file_label.label(class="NEW_OLD") }}
+                <br />
+                {{ form.file_old_fileInput.label(class="btn btn-primary NEW_OLD") }}
+                {{ form.file_old_fileInput(class="d-none NEW_OLD not_form_request",multiple="true") }}
+                <div id="NEW_OLD_fileList" class="mt-2"></div>
+              </div>
+            </div>
+            <hr />
+            <div id="formContainer2">
+              <div class="OLD_form">
+                {{ form.old_s_n.label(class="NEW_OLD") }} {{
+                form.old_s_n(class="form-control col-4 mb-3 NEW_OLD
+                NEW_OLD_req", placeholder="S/N старого сертификата") }} {{
+                form.del_reason.label(class="NEW_OLD") }} {{
+                form.del_reason(class="form-control col-sm-4 mb-3 NEW_OLD
+                NEW_OLD_req") }}
+
+                <button type="button" class="btn btn-primary btn-sm col-1/2 mb-3 NEW_OLD OLD"
+                  onclick="CloneForm('formContainer2')">
+                  Добавить
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <br />
+          {{ form.comments_in.label(class="NEW_IN NEW_OLD OLD") }} {{
+          form.comments_in(class="form-control mb-3 NEW_IN NEW_OLD OLD",
+          rows="3") }}
+        </div>
+      </div>
+      <!-- ----------------------------------второй радиобатон------------------------------- -->
+      <div id="EXT" hidden>
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body">
+              Пожалуйста убедитесь, что Вы корректно выбрали область задач!
+              <p>
+                <b>Внешние сервисы</b> - это web-сервера, обслуживающие
+                пользователей в сети Интернет. При запросе нового сертификата,
+                обязательно:
+              </p>
+
+              <p>
+                1. DNS имя должно быть согласовано с «Направлением по разработке
+                и поддержке цифровых сервисов». <br />Ссылка:<a class="text-wrap"
+                  href="https://" target="_blank" rel="noopener noreferrer">
+                </a>
+              </p>
+
+              <p>
+                2. У сервиса, для которого заказывается внешний сертификат,
+                должен быть согласованный InfoSec.
+              </p>
+
+              <p>
+                3. Если выбираете коммерческий сертификат, в описании необходимо
+                приложить обоснование невозможности использование сертификатов
+                LE. (примечание: отсутствие необходимых сетевых доступов, не
+                является обоснованием)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="row">
+            {{ form.cert_type(class="float-left pt-0 EDIT_req f",
+            onchange="CertTypeChoise(this)", style="list-style-type:none") }}
+          </div>
+          <div>
+            {{ form.newCert_type.label(class="NEW NEW_req EDIT EDIT_req",
+            hidden="true" ) }} {{ form.newCert_type(class="form-control col-8
+            mb-3 NEW NEW_req EDIT EDIT_req", hidden="true",
+            onchange="newCertTypeChoise(this)" ) }}
+          </div>
+
+          <div class="col card mb-3 NEW SSL_DV_INFO" hidden>
+            <div class="card-body">
+              <p>
+                В компании, при выборе типа сертификата приоритетным являются
+                сертификаты Let’s Encrypt.
+              </p>
+
+              <p>
+                Имеется согласованный
+                <a class="text-wrap" href="https://" target="_blank"
+                  rel="noopener noreferrer">
+                  InfoSec
+                </a>
+                на использование сертификатов Let’s Encrypt.
+              </p>
+
+              <p>
+                Сертификаты Let’s Encrypt разворачиваются самостоятельно
+                ответственными за сервис на стороне сервиса и не требуют
+                создание заявки.
+              </p>
+
+              <p>
+                Ознакомитесь пожалуйста с инструкцией: <br />
+                <a class="text-wrap" href="https://" target="_blank"
+                  rel="noopener noreferrer">
+                  Let's Encrypt
+                </a>
+              </p>
+
+              <p>
+                Только в случае отсутствия технической возможности (legacy
+                системы, специфическое оборудование и т.п.) допускается
+                использование коммерческих сертификатов.
+              </p>
+            </div>
+          </div>
+
+          <div class="col">
+            {{ form.domain_name.label(class="SSL_DV EDIT", hidden="true" ) }}
+            <div class="row">
+              {{ form.domain_name(class="form-control col-4 mb-3 SSL_DV EDIT
+              EXT_req_secondary", rows="1", hidden="true" ) }} {{
+              form.domain_ext(class="form-control col-4 mb-3 SSL_DV EDIT
+              EXT_req_secondary", hidden="true" ) }}
+            </div>
+          </div>
+
+          {{ form.domain_owner.label(class="SSL_DV EDIT", hidden="true" ) }}
+          <div class="col">
+            <div class="row">
+              {{ form.fio.label(class="col-form-label col-4 mb-3 float-sm-left
+              pt-0 SSL_DV EDIT", hidden="true" ) }} {{
+              form.fio(class="form-control col-5 mb-3 SSL_DV EDIT NEW_req
+              EDIT_req EXT_req_secondary", rows="1", placeholder="ФИО формата
+              Petrov Ivan Sergeevich", hidden="true" ) }}
+            </div>
+          </div>
+          <div class="col">
+            <div class="row">
+              {{ form.division.label(class="col-form-label col-4 float-sm-left
+              pt-0 SSL_DV EDIT", hidden="true" ) }} {{
+              form.division(class="form-control col-5 mb-3 SSL_DV EDIT
+              EXT_req_secondary", rows="1", hidden="true" ) }}
+            </div>
+          </div>
+          <div class="col">
+            <div class="row">
+              {{ form.division_email.label(class="col-form-label col-4
+              float-sm-left pt-0 SSL_DV EDIT ", hidden="true" ) }} {{
+              form.division_email(class="form-control col-5 mb-3 SSL_DV EDIT
+              EXT_req_secondary", rows="1", hidden="true" ) }}
+            </div>
+          </div>
+          <div class="col">
+            <div class="row">
+              {{ form.phone.label(class="col-form-label col-4 float-sm-left pt-0
+              SSL_DV EDIT", hidden="true" ) }} {{ form.phone(class="form-control
+              col-5 mb-3 SSL_DV EDIT EXT_req_secondary", rows="1", hidden="true"
+              ) }}
+            </div>
+          </div>
+
+          {{ form.server_owner.label( class="SSL_DV EDIT", hidden="true" ) }}
+          <div class="col">
+            <div class="row">
+              {{ form.fio_otdel.label(class="col-form-label col-4 float-sm-left
+              pt-0 SSL_DV EDIT", hidden="true" ) }} {{
+              form.fio_otdel(class="form-control col-5 mb-3 SSL_DV EDIT
+              EXT_req_secondary", rows="1", placeholder="ФИО формата Petrov Ivan
+              Sergeevich", hidden="true" ) }}
+            </div>
+          </div>
+          <div class="col">
+            <div class="row">
+              {{ form.organization.label(class="col-form-label col-4
+              float-sm-left pt-0 SSL_DV EDIT", hidden="true" ) }} {{
+              form.organization(class="form-control col-5 mb-3 SSL_DV EDIT
+              EXT_req_secondary", rows="1", hidden="true" ) }}
+            </div>
+          </div>
+          <div class="col">
+            <div class="row">
+              {{ form.organization_email.label(class="col-form-label col-4
+              float-sm-left pt-0 SSL_DV EDIT", hidden="true" ) }} {{
+              form.organization_email(class="form-control col-5 mb-3 SSL_DV EDIT
+              EXT_req_secondary", rows="1", hidden="true" ) }}
+            </div>
+          </div>
+          <div class="col">
+            <div class="row">
+              {{ form.organization_phone.label(class="col-form-label col-4
+              float-sm-left pt-0 SSL_DV EDIT", hidden="true" ) }} {{
+              form.organization_phone(class="form-control col-5 mb-3 SSL_DV EDIT
+              EXT_req_secondary", rows="1", hidden="true" ) }}
+            </div>
+          </div>
+          <div class="NEW">
+            {{ form.InfoSec.label(class="SSL_DV NEW GlobalSign InfoSec",
+            hidden="true" ) }} {{ form.InfoSec(class="form-control col-4 mb-3
+            SSL_DV NEW EXT_req_secondary GlobalSign InfoSec", rows="1",
+            hidden="true" ) }}
+          </div>
+
+          <div class="NEW EDIT">
+            {{ form.MinCif.label(class="SSL_DV NEW EDIT MinCif", hidden="true" )
+            }} {{ form.MinCif(class="form-control col mb-3 SSL_DV NEW EDIT
+            EXT_req_secondary MinCif", rows="1",
+            placeholder="Пример : http(s)://****/tls/*.csr", hidden="true" ) }}
+          </div>
+
+          {{ form.comments_ext.label( class="SSL_DV EDIT", hidden="true" ) }} {{
+          form.comments_ext(class="form-control mb-3 SSL_DV EDIT
+          EXT_req_secondary", rows="3", hidden="true" ) }} {{
+          form.domain_full_name.label(class="OTZ", hidden="false" ) }}
+          <div class="col">
+            <div class="row">
+              {{ form.domain_full_name(class="form-control col-5 mb-3 OTZ
+              OTZ_req EXT_req_secondary", rows="1", hidden="false" ) }}
+            </div>
+          </div>
+          {{ form.serial_number.label(class="OTZ", hidden="false" ) }}
+          <div class="col">
+            <div class="row">
+              {{ form.serial_number(class="form-control col-5 mb-3 OTZ OTZ_req
+              EXT_req_secondary", rows="1", hidden="false" ) }}
+            </div>
+          </div>
+          {{ form.otziv_reason.label( class="OTZ", hidden="false" ) }} {{
+          form.otziv_reason(class="form-control mb-4 OTZ OTZ_req
+          EXT_req_secondary", rows="3", hidden="false" ) }}
+        </div>
+      </div>
+      <!-- ----------------------------------третий радиобатон------------------------------- -->
+      <div id="KON" hidden>
+        <div class="col mb-3">
+          {{ form.comments_kon.label }} {{ form.comments_kon(class="form-control
+          mb-3 KON KON_req KON_req_secondary" , rows="3") }}
+          <div class="container KON file_in">
+            <div class="upload-container KON" id="upload-container KON">
+              {{ form.file_kon_fileInput.label(class="btn btn-primary") }} 
+              {{ form.file_kon_fileInput(class="d-none KON not_form_request",multiple="true") }}
+              <div id="KON_fileList" class="mt-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {{ form.send(class="btn btn-success col-3", hidden="true") }}
+    </div>
+
+    <div class="col-5">
+      <form>
+        <div class="card text-white border-dark bg-success">
+          <h5 class="card-header text-warning">Внимание!</h5>
+          <div class="card-body">
+            <p class="card-text text-monospace">
+              Перед генерацией сертификатов для веб-серверов и ПО ознакомьтесь с
+              инструкциями по ссылке:
+              <br />
+              <a class="text-wrap" href="https://"
+                target="_blank" rel="noopener noreferrer">
+              </a>
+            </p>
+            <p>
+              Просим обратить внимание на обязательные к заполнению поля
+              сертификатов. Некорректные запросы на подпись будут отклонены.
+            </p>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</form>
+<!-- --------------------------------------------------------------------------------- -->
+<br />
+
+{% endblock content %} {% block scripts %} {{ super() }}
+<!-- <script src="../static/js/iti_defence.js"></script> -->
+<script src="{{ url_for('iti_defence.static', filename='js/iti_defence.js') }}"></script>
+
+<script>
+  window.addEventListener("beforeunload", function () {
+    let load = document.getElementById("load");
+    load.hidden = false;
+    let overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.background = "rgba(255,255,255, 0.5)";
+    document.body.appendChild(overlay);
+  });
+</script>
+
+{% endblock scripts %}
